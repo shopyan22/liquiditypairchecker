@@ -25,7 +25,6 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
-        /* Styling tabel responsif */
         .table-responsive {
             width: 100%;
             overflow-x: auto;
@@ -56,14 +55,12 @@
             z-index: 1;
         }
 
-        /* Memotong teks panjang di kolom Address */
-        .truncate-address {
-            max-width: 150px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: block;
-            cursor: help;
+        /* Gaya untuk alamat yang dipotong */
+        .address-link {
+            font-family: monospace;
+            cursor: pointer;
+            text-decoration: underline;
+            color: #0066cc;
         }
 
         .error {
@@ -124,7 +121,6 @@
         }
         .reset-btn:hover { background-color: #c82333; }
 
-        /* Media Query untuk HP */
         @media (max-width: 600px) {
             h1 { font-size: 20px; }
             .container { padding: 15px; margin: 10px; }
@@ -132,10 +128,6 @@
             th, td {
                 padding: 10px 8px;
                 font-size: 14px;
-            }
-
-            .truncate-address {
-                max-width: 100px;
             }
 
             button {
@@ -182,6 +174,13 @@
     </div>
 
     <script>
+        // Fungsi pembantu untuk memotong teks di bagian tengah
+        function shortenAddress(address) {
+            if (!address) return 'N/A';
+            if (address.length <= 10) return address;
+            return address.substring(0, 5) + '...' + address.substring(address.length - 5);
+        }
+
         async function fetchData() {
             const tokenAddress = document.getElementById('tokenAddress').value.trim();
             const messageElement = document.getElementById('message');
@@ -235,9 +234,12 @@
                         if (priceChange > 0) changeClass = 'style="color: green;"';
                         if (priceChange < 0) changeClass = 'style="color: red;"';
 
+                        // Memotong alamat di sini memakai fungsi shortenAddress
+                        const displayedAddress = shortenAddress(pairAddress);
+
                         row.innerHTML = `
                             <td>
-                                <span class="truncate-address" title="${pairAddress}">${pairAddress}</span>
+                                <span class="address-link" title="Klik untuk salin" onclick="navigator.clipboard.writeText('${pairAddress}'); alert('Alamat disalin!');">${displayedAddress}</span>
                             </td>
                             <td>${dexId}</td>
                             <td>$${priceUsd}</td>
