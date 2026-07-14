@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Token Data Fetcher</title>
+    <title>Solana Liquidity Pair Checker</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,101 +14,171 @@
         h1 {
             text-align: center;
             margin: 20px 0;
+            font-size: 24px;
         }
         .container {
             max-width: 780px;
-            margin: auto;
+            margin: 20px auto;
             padding: 20px;
             background: #fff;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+
+        /* Styling tabel responsif */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            min-width: 600px;
         }
+
         th, td {
-            padding: 10px;
+            padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid #ddd;
+            vertical-align: middle;
         }
+
         th {
             background-color: #f2f2f2;
-        }
-        .error {
-            color: red;
             font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        /* Memotong teks panjang di kolom Address */
+        .truncate-address {
+            max-width: 150px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+            cursor: help;
+        }
+
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
         }
         .message {
-            color: green;
+            color: #28a745;
             font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
         }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
         input[type="text"] {
-            padding: 10px;
-            width: calc(100% - 22px);
-            margin-right: 10px;
+            padding: 12px;
             border: 1px solid #ccc;
             border-radius: 4px;
+            width: 100%;
             box-sizing: border-box;
+            font-size: 16px;
         }
+
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
         button {
-            padding: 10px 15px;
+            padding: 12px 20px;
             border: none;
             border-radius: 4px;
             color: #fff;
             cursor: pointer;
             font-size: 16px;
-            margin: 5px;
+            flex: 1;
+            max-width: 150px;
         }
+
         .fetch-btn {
             background-color: #28a745;
         }
+        .fetch-btn:hover { background-color: #218838; }
+
         .reset-btn {
             background-color: #dc3545;
         }
+        .reset-btn:hover { background-color: #c82333; }
+
+        /* Media Query untuk HP */
         @media (max-width: 600px) {
-            .container {
-                padding: 10px;
+            h1 { font-size: 20px; }
+            .container { padding: 15px; margin: 10px; }
+            
+            th, td {
+                padding: 10px 8px;
+                font-size: 14px;
             }
-            input[type="text"] {
-                width: calc(100% - 22px);
-                margin-right: 0;
-                margin-bottom: 10px;
+
+            .truncate-address {
+                max-width: 100px;
             }
+
             button {
                 width: 100%;
-                box-sizing: border-box;
-                margin: 5px 0;
+                max-width: none;
             }
-            table {
-                font-size: 14px;
+            
+            .button-group {
+                flex-direction: column;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Solana Token Data Fetcher</h1>
-        <input type="text" id="tokenAddress" placeholder="Enter Token Address" value="">
-        <center>
-            <button class="fetch-btn" onclick="fetchData()">Fetch Data</button>
+        <h1>Solana Liquidity Pair Checker</h1>
+        
+        <div class="input-group">
+            <input type="text" id="tokenAddress" placeholder="Masukkan Alamat Token Solana" value="">
+        </div>
+
+        <div class="button-group">
+            <button class="fetch-btn" onclick="fetchData()">Check Pairs</button>
             <button class="reset-btn" onclick="resetData()">Reset</button>
-        </center>
+        </div>
+
         <div id="message" class="message"></div>
         <div id="error" class="error"></div>
-        <table id="dataTable">
-            <thead>
-                <tr>
-                    <th>Address</th>
-                    <th>DexId</th>
-                    <th>Price USD</th>
-                    <th>Price Change (24h)</th>
-                    <th>Liquidity (USD)</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+
+        <div class="table-responsive">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Address</th>
+                        <th>DexId</th>
+                        <th>Price USD</th>
+                        <th>Price Chg (24h)</th>
+                        <th>Liquidity (USD)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -123,51 +193,67 @@
             tableBody.innerHTML = '';
 
             if (!tokenAddress) {
-                errorElement.textContent = 'Please enter a token address first.';
+                errorElement.textContent = '⚠️ Harap masukkan alamat token terlebih dahulu.';
                 return;
             }
+
+            messageElement.textContent = '⏳ Sedang memeriksa data likuiditas...';
 
             try {
                 const response = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${tokenAddress}`);
                 const data = await response.json();
 
-                if (data.pairs && Array.isArray(data.pairs)) {
-                    // Filter dan urutkan secara aman menggunakan optional chaining (?.)
-                    const sortedPairs = data.pairs
-                        .filter(pair => pair.baseToken?.address?.toLowerCase() === tokenAddress.toLowerCase())
-                        .sort((a, b) => {
-                            const liqB = b.liquidity?.usd || 0;
-                            const liqA = a.liquidity?.usd || 0;
-                            return liqB - liqA;
-                        });
+                messageElement.textContent = '';
 
-                    if (sortedPairs.length > 0) {
-                        sortedPairs.forEach(pair => {
-                            const row = document.createElement('tr');
-                            
-                            // Ambil data dengan aman, berikan fallback jika datanya null/undefined
-                            const price = pair.priceUsd ? `$${pair.priceUsd}` : '-';
-                            const change = pair.priceChange?.h24 ? `${pair.priceChange.h24}%` : '-';
-                            const liquidity = pair.liquidity?.usd ? `$${Number(pair.liquidity.usd).toLocaleString()}` : '-';
+                if (data.pairs && Array.isArray(data.pairs) && data.pairs.length > 0) {
+                    
+                    const filteredPairs = data.pairs.filter(pair => 
+                        pair.baseToken?.address?.toLowerCase() === tokenAddress.toLowerCase()
+                    );
 
-                            row.innerHTML = `
-                                <td>${pair.pairAddress}</td>
-                                <td>${pair.dexId}</td>
-                                <td>${price}</td>
-                                <td>${change}</td>
-                                <td>${liquidity}</td>
-                            `;
-                            tableBody.appendChild(row);
-                        });
-                        messageElement.textContent = 'Data fetched successfully!';
-                    } else {
-                        messageElement.textContent = 'No pairs found matching this exact base token address.';
+                    if (filteredPairs.length === 0) {
+                        errorElement.textContent = '❌ Tidak ditemukan liquidity pair yang cocok untuk alamat token ini.';
+                        return;
                     }
+
+                    filteredPairs.sort((a, b) => {
+                        const liqB = b.liquidity?.usd || 0;
+                        const liqA = a.liquidity?.usd || 0;
+                        return liqB - liqA;
+                    });
+
+                    filteredPairs.forEach(pair => {
+                        const row = document.createElement('tr');
+                        
+                        const pairAddress = pair.pairAddress || 'N/A';
+                        const dexId = pair.dexId || 'N/A';
+                        const priceUsd = pair.priceUsd ? parseFloat(pair.priceUsd).toFixed(6) : 'N/A';
+                        const priceChange = pair.priceChange?.h24 ?? 'N/A';
+                        const liquidity = pair.liquidity?.usd ? `$${pair.liquidity.usd.toLocaleString('en-US')}` : 'N/A';
+
+                        let changeClass = '';
+                        if (priceChange > 0) changeClass = 'style="color: green;"';
+                        if (priceChange < 0) changeClass = 'style="color: red;"';
+
+                        row.innerHTML = `
+                            <td>
+                                <span class="truncate-address" title="${pairAddress}">${pairAddress}</span>
+                            </td>
+                            <td>${dexId}</td>
+                            <td>$${priceUsd}</td>
+                            <td ${changeClass}>${priceChange}%</td>
+                            <td>${liquidity}</td>
+                        `;
+                        
+                        tableBody.appendChild(row);
+                    });
+                    messageElement.textContent = `✅ Berhasil memuat ${filteredPairs.length} liquidity pair.`;
                 } else {
-                    messageElement.textContent = 'No pairs found.';
+                    errorElement.textContent = '❌ Tidak ada data pair ditemukan untuk token ini.';
                 }
             } catch (error) {
-                errorElement.textContent = 'Error fetching data: ' + error.message;
+                console.error(error);
+                errorElement.textContent = '⚠️ Terjadi kesalahan koneksi. Silakan coba beberapa saat lagi.';
             }
         }
 
